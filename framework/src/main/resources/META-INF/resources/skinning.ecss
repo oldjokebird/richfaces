@@ -69,7 +69,7 @@ button,input[type="reset"],input[type="submit"],input[type="button"] {
     background-repeat: repeat-x;
     background-position: top left;
     background-color: '#{richSkin.headerBackgroundColor}';
-    background-image: "url(#{resource['org.richfaces.images:buttonBackgroundImage.png']})";
+    background-image: "#{empty richSkin.generalSizeFont ? 'none' : 'url('.concat(resource['org.richfaces.images:buttonBackgroundImage.png']).concat(')')}";
 }
 
 button:hover,input[type="reset"]:hover,input[type="submit"]:hover,input[type="button"]:hover {
