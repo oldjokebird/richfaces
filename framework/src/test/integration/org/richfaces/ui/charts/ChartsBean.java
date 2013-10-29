@@ -1,25 +1,51 @@
 package org.richfaces.ui.charts;
 
+/*
+ * JBoss, Home of Professional Open Source
+ * Copyright 2013, Red Hat, Inc. and individual contributors
+ * by the @authors tag. See the copyright.txt in the distribution for a
+ * full listing of individual contributors.
+ *
+ * This is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU Lesser General Public License as
+ * published by the Free Software Foundation; either version 2.1 of
+ * the License, or (at your option) any later version.
+ *
+ * This software is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public
+ * License along with this software; if not, write to the Free
+ * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
+ */
 import java.util.LinkedList;
 import java.util.List;
 
 import javax.annotation.PostConstruct;
-import javax.inject.Named;
+import javax.faces.bean.ManagedBean;
 import javax.faces.bean.RequestScoped;
-//import org.richfaces.sandbox.chart.PlotClickEvent;
-//import org.richfaces.sandbox.chart.model.ChartDataModel;
-//import org.richfaces.sandbox.chart.model.DateChartDataModel;
-//import org.richfaces.sandbox.chart.model.NumberChartDataModel;
-//import org.richfaces.sandbox.chart.model.StringChartDataModel;
 
-@Named
+import org.richfaces.sandbox.chart.PlotClickEvent;
+import org.richfaces.sandbox.chart.model.ChartDataModel.ChartType;
+import org.richfaces.sandbox.chart.model.StringChartDataModel;
+
+@ManagedBean(name = "bean")
 @RequestScoped
 public class ChartsBean {
 
-    List<Country> countries;
+    private String msg;
+    private List<Country> countries;
+    private StringChartDataModel pie;
+    private StringChartDataModel cars;
+    List<GDPRecord> gdp;
 
     @PostConstruct
     public void init() {
+
+        msg = "no server-side event";
 
         Country usa = new Country("USA");
         usa.put(1990, 19.1);
@@ -76,9 +102,77 @@ public class ChartsBean {
         countries.add(china);
         countries.add(japan);
         countries.add(russia);
+
+        pie = new StringChartDataModel(ChartType.pie);
+        pie.put("Industrial sector", 2995787);
+        pie.put("Agricultural sector", 188217);
+        pie.put("Service sector", 12500746);
+
+        cars = new StringChartDataModel(ChartType.bar);
+        cars.put("San Marino", 1263);
+        cars.put("United States", 797);
+        cars.put("Denmark", 480);
+        cars.put("Vietnam", 13);
+        cars.put("Croatia", 380);
+
+        gdp = new LinkedList<GDPRecord>();
+        gdp.add(new GDPRecord("United States", 188217, 2995787, 12500746));
+        gdp.add(new GDPRecord("China", 830931, 3726848, 3669259));
+        gdp.add(new GDPRecord("Japan", 71568, 1640091, 4258274));
+        gdp.add(new GDPRecord("Germany", 27205, 955563, 2417812));
     }
 
     public List<Country> getCountries() {
         return countries;
+    }
+
+    public void handler(PlotClickEvent event) {
+        msg = "Server's speaking";
+    }
+
+    public String getMsg() {
+        return msg;
+    }
+
+    public StringChartDataModel getPie() {
+        return pie;
+    }
+
+    public StringChartDataModel getCars() {
+        return cars;
+    }
+
+    public List<GDPRecord> getGdp() {
+        return gdp;
+    }
+
+    public class GDPRecord {
+        private String state;
+        private int agricult;
+        private int industry;
+        private int service;
+
+        public GDPRecord(String country, int agricult, int industry, int service) {
+            this.state = country;
+            this.agricult = agricult;
+            this.industry = industry;
+            this.service = service;
+        }
+
+        public String getState() {
+            return state;
+        }
+
+        public int getAgricult() {
+            return agricult;
+        }
+
+        public int getIndustry() {
+            return industry;
+        }
+
+        public int getService() {
+            return service;
+        }
     }
 }
