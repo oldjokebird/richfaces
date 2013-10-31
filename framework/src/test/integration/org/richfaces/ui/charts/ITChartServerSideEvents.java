@@ -37,10 +37,13 @@ import org.jboss.shrinkwrap.api.spec.WebArchive;
 import org.jboss.shrinkwrap.resolver.api.maven.Maven;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.openqa.selenium.By;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.FindBy;
+import org.openqa.selenium.support.ui.ExpectedConditions;
+import org.openqa.selenium.support.ui.WebDriverWait;
 import org.richfaces.deployment.FrameworkDeployment;
 import org.richfaces.shrinkwrap.descriptor.FaceletAsset;
 
@@ -57,7 +60,7 @@ public class ITChartServerSideEvents {
     @ArquillianResource
     private URL contextPath;
 
-    @FindBy(id = "msg")
+    @FindBy(tagName = "span")
     private WebElement plotClickOutput;
 
     @FindBy(id = "firstChart")
@@ -69,7 +72,7 @@ public class ITChartServerSideEvents {
 
         File[] deps = Maven.resolver().resolve("org.richfaces.sandbox.ui.charts:charts-ui:5.0.0-SNAPSHOT")
             .withoutTransitivity().asFile();
-        deployment.archive().addClasses(ChartsBean.class, Country.class).addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+        deployment.archive().addClasses(ChartEventBean.class, Country.class).addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
         deployment.archive().addAsLibraries(deps);
         addIndexPage(deployment);
         return deployment.getFinalArchive();
@@ -78,26 +81,24 @@ public class ITChartServerSideEvents {
     private static void addIndexPage(FrameworkDeployment deployment) {
         FaceletAsset p = new FaceletAsset();
 
-        p.form("<h:form>");
         // initiate output text fields, has to be inside form
-        p.form("<h:outputText id='msg' value='#{bean.msg}'></h:outputText>");
+        p.form("<h:outputText id='msg' value='#{eventbean.msg}'></h:outputText>");
         p.form("<br/>");
 
         // initialize a chart
-        p.form("<s:chart id='firstChart' clickListener=\"#{bean.handler}\">");
-        p.form("<r:repeat value='#{bean.countries}' var='country' >");
+        p.form("<s:chart id='firstChart' clickListener='#{eventbean.handler}'>");
+        p.form("<r:repeat value='#{eventbean.countries}' var='country' >");
         p.form("<s:series label='#{country.name}' type='line'>");
         p.form("<r:repeat value='#{country.data}' var='record'>");
         p.form("<s:point x='#{record.year}' y='#{record.tons}' />");
         p.form("</r:repeat>");
         p.form("</s:series>");
         p.form("</r:repeat>");
-        p.form("<r:ajax event=\"plotclick\" render=\"msg\" execute=\"msg\"/>");
+        p.form("<r:ajax event='plotclick' render='msg' execute='msg'/>");
         p.form("<s:xaxis label='year'/>");
         p.form("<s:yaxis label='metric tons of CO2 per capita'/>");
         p.form("</s:chart>");
 
-        p.form("</h:form>");
         deployment.archive().addAsWebResource(p, "serversideevents.xhtml");
     }
     
@@ -112,7 +113,10 @@ public class ITChartServerSideEvents {
         assertTrue(plotClickOutput.getText() != "Server's speaking");
         // trigger onplotclick event
         new Actions(driver).moveToElement(chart, offSetX, offsetY).click().build().perform();
-
+        // wait till server response
+        
+        WebDriverWait wait = new WebDriverWait(driver, 5);
+        wait.until(ExpectedConditions.textToBePresentInElement(By.tagName("span"), "Server's speaking"));
         assertEquals("Server's speaking", plotClickOutput.getText());
     }
 }
