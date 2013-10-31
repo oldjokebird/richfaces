@@ -104,7 +104,6 @@ public class ITChartServerSideEvents {
     
     /**
      * Testing a server side event after plotclick.
-     * Currently NOT WORKING
      */
     @Test
     public void testServerSidePlotclick() {
@@ -113,8 +112,8 @@ public class ITChartServerSideEvents {
         assertTrue(plotClickOutput.getText() != "Server's speaking");
         // trigger onplotclick event
         new Actions(driver).moveToElement(chart, offSetX, offsetY).click().build().perform();
-        // wait till server response
         
+        // wait till server response        
         WebDriverWait wait = new WebDriverWait(driver, 5);
         wait.until(ExpectedConditions.textToBePresentInElement(By.tagName("span"), "Server's speaking"));
         assertEquals("Server's speaking", plotClickOutput.getText());
