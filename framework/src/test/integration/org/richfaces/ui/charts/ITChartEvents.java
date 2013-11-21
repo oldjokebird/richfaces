@@ -20,7 +20,7 @@ package org.richfaces.ui.charts;
  * Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  * 02110-1301 USA, or see the FSF site: http://www.fsf.org.
  */
-import java.io.File;
+
 import java.net.URL;
 
 import static org.junit.Assert.assertEquals;
@@ -33,7 +33,6 @@ import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.arquillian.test.api.ArquillianResource;
 import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
-import org.jboss.shrinkwrap.resolver.api.maven.Maven;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -78,10 +77,8 @@ public class ITChartEvents {
     public static WebArchive createDeployment() {
         FrameworkDeployment deployment = new FrameworkDeployment(ITChartEvents.class);
 
-        File[] deps = Maven.resolver().resolve("org.richfaces.sandbox.ui.charts:charts-ui:5.0.0-SNAPSHOT")
-            .withoutTransitivity().asFile();
+        
         deployment.archive().addClasses(ChartsBean.class, Country.class).addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
-        deployment.archive().addAsLibraries(deps);
         addIndexPage(deployment);
         return deployment.getFinalArchive();
     }
@@ -91,19 +88,19 @@ public class ITChartEvents {
 
         // initialize a chart
 
-        p.form("<s:chart id='firstChart' onplotclick=\"$('#plotclick').text('onplotclickevent')\" "
+        p.form("<r:chart id='firstChart' onplotclick=\"$('#plotclick').text('onplotclickevent')\" "
             + "onplothover=\"$('#hover').text('onplothoverevent')\" "
             + "onmouseout=\"$('#mouseout').text('onmouseoutevent')\">");
         p.form("<r:repeat value='#{bean.countries}' var='country' >");
-        p.form("<s:series label='#{country.name}' type='line'>");
+        p.form("<r:series label='#{country.name}' type='line'>");
         p.form("<r:repeat value='#{country.data}' var='record'>");
-        p.form("<s:point x='#{record.year}' y='#{record.tons}' />");
+        p.form("<r:point x='#{record.year}' y='#{record.tons}' />");
         p.form("</r:repeat>");
-        p.form("</s:series>");
+        p.form("</r:series>");
         p.form("</r:repeat>");
-        p.form("<s:xaxis label='year'/>");
-        p.form("<s:yaxis label='metric tons of CO2 per capita'/>");
-        p.form("</s:chart>");
+        p.form("<r:xaxis label='year'/>");
+        p.form("<r:yaxis label='metric tons of CO2 per capita'/>");
+        p.form("</r:chart>");
 
         // initiate output text fields
         p.body("<h:outputText id='plotclick' style='font-weight:bold' value='someValue'></h:outputText>");

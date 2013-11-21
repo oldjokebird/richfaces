@@ -1,6 +1,5 @@
 package org.richfaces.ui.charts;
 
-import java.io.File;
 import java.net.URL;
 import java.util.List;
 
@@ -14,7 +13,6 @@ import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.arquillian.test.api.ArquillianResource;
 import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
-import org.jboss.shrinkwrap.resolver.api.maven.Maven;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -62,10 +60,7 @@ public class ITChartsInitTests {
     public static WebArchive createDeployment() {
         FrameworkDeployment deployment = new FrameworkDeployment(ITChartsInitTests.class);
 
-        File[] deps = Maven.resolver().resolve("org.richfaces.sandbox.ui.charts:charts-ui:5.0.0-SNAPSHOT")
-            .withoutTransitivity().asFile();
         deployment.archive().addClasses(ChartsBean.class, Country.class).addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
-        deployment.archive().addAsLibraries(deps);
         addIndexPage(deployment);
         return deployment.getFinalArchive();
     }
@@ -74,34 +69,34 @@ public class ITChartsInitTests {
         FaceletAsset p = new FaceletAsset();
 
         // initialize a line chart
-        p.form("<s:chart id='firstChart'>");
+        p.form("<r:chart id='firstChart'>");
         p.form("<r:repeat value='#{bean.countries}' var='country' >");
-        p.form("<s:series label='#{country.name}' type='line'>");
+        p.form("<r:series label='#{country.name}' type='line'>");
         p.form("<r:repeat value='#{country.data}' var='record'>");
-        p.form("<s:point x='#{record.year}' y='#{record.tons}' />");
+        p.form("<r:point x='#{record.year}' y='#{record.tons}' />");
         p.form("</r:repeat>");
-        p.form("</s:series>");
+        p.form("</r:series>");
         p.form("</r:repeat>");
-        p.form("<s:xaxis label='year'/>");
-        p.form("<s:yaxis label='metric tons of CO2 per capita'/>");
-        p.form("</s:chart>");
+        p.form("<r:xaxis label='year'/>");
+        p.form("<r:yaxis label='metric tons of CO2 per capita'/>");
+        p.form("</r:chart>");
 
         // initialize a pie chart
-        p.form("<s:chart id='pieChart'>");
-        p.form("<s:series data='#{bean.pie}' type='pie'/>");
-        p.form("</s:chart>");
+        p.form("<r:chart id='pieChart'>");
+        p.form("<r:series data='#{bean.pie}' type='pie'/>");
+        p.form("</r:chart>");
 
         // initialize a bar chart
-        p.form("<s:chart id='barChart' >");
-        p.form("<s:legend sorting='ascending'/>");
+        p.form("<r:chart id='barChart' >");
+        p.form("<r:legend sorting='ascending'/>");
         p.form("<r:repeat value='#{bean.gdp}' var='country'>");
-        p.form("<s:series label='#{country.state}' type='bar'>");
-        p.form("<s:point x='Agricultural' y='#{country.agricult}'/>");
-        p.form("<s:point x='Industrial' y='#{country.industry}'/>");
-        p.form("<s:point x='Service' y='#{country.service}'/>");
-        p.form("</s:series>");
+        p.form("<r:series label='#{country.state}' type='bar'>");
+        p.form("<r:point x='Agricultural' y='#{country.agricult}'/>");
+        p.form("<r:point x='Industrial' y='#{country.industry}'/>");
+        p.form("<r:point x='Service' y='#{country.service}'/>");
+        p.form("</r:series>");
         p.form("</r:repeat>");
-        p.form("</s:chart>");
+        p.form("</r:chart>");
 
         deployment.archive().addAsWebResource(p, "index.xhtml");
 
@@ -162,13 +157,11 @@ public class ITChartsInitTests {
         // assert y axis contains all labels
         List<WebElement> yAxisLabels = driver.findElements(By
             .xpath("//div[@id = 'barChart']//div[contains(@class, 'flot-y-axis')]/div"));
-        assertTrue(yAxisLabels.size() == 7);
+        assertTrue(yAxisLabels.size() == 5);
         assertEquals("0", yAxisLabels.get(0).getText());
-        assertEquals("2500000", yAxisLabels.get(1).getText());
-        assertEquals("5000000", yAxisLabels.get(2).getText());
-        assertEquals("7500000", yAxisLabels.get(3).getText());
-        assertEquals("10000000", yAxisLabels.get(4).getText());
-        assertEquals("12500000", yAxisLabels.get(5).getText());
-        assertEquals("15000000", yAxisLabels.get(6).getText());
+        assertEquals("5000000", yAxisLabels.get(1).getText());
+        assertEquals("10000000", yAxisLabels.get(2).getText());
+        assertEquals("15000000", yAxisLabels.get(3).getText());
+        assertEquals("20000000", yAxisLabels.get(4).getText());
     }
 }

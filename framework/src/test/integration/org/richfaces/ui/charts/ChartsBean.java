@@ -28,9 +28,11 @@ import javax.annotation.PostConstruct;
 import javax.faces.bean.ManagedBean;
 import javax.faces.bean.RequestScoped;
 
-import org.richfaces.sandbox.chart.PlotClickEvent;
-import org.richfaces.sandbox.chart.model.ChartDataModel.ChartType;
-import org.richfaces.sandbox.chart.model.StringChartDataModel;
+import org.richfaces.ui.output.chart.ChartDataModel.ChartType;
+import org.richfaces.ui.output.chart.PlotClickEvent;
+import org.richfaces.ui.output.chart.StringChartDataModel;
+
+
 
 @ManagedBean(name = "bean")
 @RequestScoped

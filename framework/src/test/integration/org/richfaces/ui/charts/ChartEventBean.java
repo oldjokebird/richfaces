@@ -27,7 +27,9 @@ import javax.annotation.PostConstruct;
 import javax.faces.bean.ManagedBean;
 import javax.faces.bean.ViewScoped;
 
-import org.richfaces.sandbox.chart.PlotClickEvent;
+import org.richfaces.ui.output.chart.PlotClickEvent;
+
+
 
 @ManagedBean(name = "eventbean")
 @ViewScoped
@@ -130,7 +132,7 @@ public class ChartEventBean {
             this.data.add(new Country.Record(year, tons));
         }
         
-        public List getData() {
+        public List<Country.Record> getData() {
             return data;
         }
 
