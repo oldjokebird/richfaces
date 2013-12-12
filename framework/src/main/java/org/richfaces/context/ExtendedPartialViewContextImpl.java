@@ -39,12 +39,9 @@ import javax.faces.component.visit.VisitCallback;
 import javax.faces.component.visit.VisitContext;
 import javax.faces.component.visit.VisitHint;
 import javax.faces.component.visit.VisitResult;
-import javax.faces.context.ExternalContext;
 import javax.faces.context.FacesContext;
 import javax.faces.context.PartialResponseWriter;
 import javax.faces.context.PartialViewContext;
-import javax.faces.context.ResponseWriter;
-import javax.faces.event.PhaseId;
 
 import org.richfaces.javascript.JavaScriptService;
 import org.richfaces.javascript.ScriptUtils;
@@ -55,8 +52,6 @@ import org.richfaces.services.ServiceTracker;
 import org.richfaces.ui.common.HtmlConstants;
 import org.richfaces.ui.common.meta.MetaComponentEncoder;
 import org.richfaces.util.FastJoiner;
-
-import com.sun.faces.util.Util;
 
 /**
  * <p>
@@ -107,10 +102,18 @@ public class ExtendedPartialViewContextImpl extends ExtendedPartialViewContext {
     private String behaviorEvent = null;
     private boolean released = false;
     private boolean limitRender = false;
+
     private PartialViewContext wrappedViewContext;
+    private PartialResponseWriter partialResponseWriter;
+
     private String onbeforedomupdate;
     private String oncomplete;
     private Object responseData;
+
+    @Override
+    public PartialViewContext getWrapped() {
+        return wrappedViewContext;
+    }
 
     public ExtendedPartialViewContextImpl(PartialViewContext wrappedViewContext, FacesContext facesContext) {
         super(facesContext);
@@ -141,6 +144,7 @@ public class ExtendedPartialViewContextImpl extends ExtendedPartialViewContext {
         if (detectContextMode() == ContextMode.DIRECT) {
             if (renderIds == null) {
                 renderIds = new LinkedHashSet<String>();
+                visitActivatorAtRender();
             }
 
             return renderIds;
@@ -209,140 +213,39 @@ public class ExtendedPartialViewContextImpl extends ExtendedPartialViewContext {
 
     @Override
     public PartialResponseWriter getPartialResponseWriter() {
-        return new DeferredEndingPartialResponseWriter(wrappedViewContext.getPartialResponseWriter());
-    }
-
-    private boolean isProcessedExecutePhase(PhaseId phaseId) {
-        return phaseId == PhaseId.APPLY_REQUEST_VALUES || phaseId == PhaseId.PROCESS_VALIDATIONS
-            || phaseId == PhaseId.UPDATE_MODEL_VALUES;
-    }
-
-    @Override
-    public void processPartial(PhaseId phaseId) {
-        if (detectContextMode() == ContextMode.DIRECT) {
-            if (phaseId == PhaseId.RENDER_RESPONSE) {
-                processPartialRenderPhase();
-            } else if (isProcessedExecutePhase(phaseId)) {
-                processPartialExecutePhase(phaseId);
-            }
-        } else {
-            wrappedViewContext.processPartial(phaseId);
-            if (phaseId == PhaseId.RENDER_RESPONSE) {
-                finallyEndDocumentForWrappedMode();
-            }
+        assertNotReleased();
+        if (partialResponseWriter == null) {
+            partialResponseWriter = new ExtensionWritingPartialResponseWriter(wrappedViewContext.getPartialResponseWriter());
         }
+        return partialResponseWriter;
     }
 
-    private void finallyEndDocumentForWrappedMode() {
-        FacesContext facesContext = getFacesContext();
-        PartialViewContext pvc = facesContext.getPartialViewContext();
-        UIViewRoot viewRoot = facesContext.getViewRoot();
-        PartialResponseWriter writer = pvc.getPartialResponseWriter();
+    /**
+     * Writes RichFaces extensions once document is ended
+     *
+     * @author Lukas Fryc
+     */
+    private class ExtensionWritingPartialResponseWriter extends PartialResponseWriterWrapper {
 
-        if (writer instanceof DeferredEndingPartialResponseWriter) {
-            try {
-
-                addJavaScriptServicePageScripts(facesContext);
-                renderExtensions(facesContext, viewRoot);
-
-                ((DeferredEndingPartialResponseWriter) writer).finallyEndDocument();
-            } catch (Exception e) {
-                LOG.warn("Can't finally end the document for wrapped context", e);
-            }
-        }
-    }
-
-    protected void processPartialExecutePhase(PhaseId phaseId) {
-        FacesContext facesContext = getFacesContext();
-        PartialViewContext pvc = facesContext.getPartialViewContext();
-        Collection<String> executeIds = pvc.getExecuteIds();
-
-        if (executeIds == null || executeIds.isEmpty()) {
-            // TODO - review
-            // if (phaseId == PhaseId.APPLY_REQUEST_VALUES) {
-            // LOG.warn("Partial execute won't happen - executeIds were not specified");
-            // }
-            return;
+        public ExtensionWritingPartialResponseWriter(PartialResponseWriter wrapped) {
+            super(wrapped);
         }
 
-        try {
-            executeComponents(phaseId, executeIds);
-        } catch (Exception e) {
-            LOG.error(e.getMessage(), e);
-        }
+        @Override
+        public void endDocument() throws IOException {
+            FacesContext facesContext = FacesContext.getCurrentInstance();
+            UIViewRoot viewRoot = facesContext.getViewRoot();
+            PartialViewContext pvc = facesContext.getPartialViewContext();
+            Collection<String> renderIds = pvc.getRenderIds();
 
-        if (phaseId == PhaseId.APPLY_REQUEST_VALUES) {
-            // fix for MyFaces
-            ExternalContext externalContext = facesContext.getExternalContext();
-            externalContext.setResponseCharacterEncoding(externalContext.getRequestCharacterEncoding());
-
-            PartialResponseWriter writer = pvc.getPartialResponseWriter();
-            facesContext.setResponseWriter(writer);
-        }
-    }
-
-    protected void executeComponents(PhaseId phaseId, Collection<String> executeIds) {
-        FacesContext facesContext = getFacesContext();
-        EnumSet<VisitHint> hints = EnumSet.of(VisitHint.SKIP_UNRENDERED);
-        VisitContext visitContext = new ExecuteExtendedVisitContext(facesContext, executeIds, hints);
-        PartialViewExecuteVisitCallback callback = new PartialViewExecuteVisitCallback(facesContext, phaseId);
-        facesContext.getViewRoot().visitTree(visitContext, callback);
-    }
-
-    protected void processPartialRenderPhase() {
-        FacesContext facesContext = getFacesContext();
-        PartialViewContext pvc = facesContext.getPartialViewContext();
-        UIViewRoot viewRoot = facesContext.getViewRoot();
-        Collection<String> phaseIds = pvc.getRenderIds();
-        visitActivatorAtRender(phaseIds);
-
-        try {
-            PartialResponseWriter writer = pvc.getPartialResponseWriter();
-            ResponseWriter orig = facesContext.getResponseWriter();
-            facesContext.getAttributes().put(ORIGINAL_WRITER, orig);
-            facesContext.setResponseWriter(writer);
-
-            ExternalContext exContext = facesContext.getExternalContext();
-            exContext.setResponseContentType("text/xml");
-            exContext.addResponseHeader("Cache-Control", "no-cache");
-            writer.startDocument();
-            if (isRenderAll()) {
-                renderAll(facesContext, viewRoot);
-                renderState(facesContext);
-            } else {
-                // Skip this processing if "none" is specified in the render list,
-                // or there were no render phase client ids.
-                if ((phaseIds != null && !phaseIds.isEmpty())
-                    || (!limitRender && PartialViewContextAjaxOutputTracker.hasNestedAjaxOutputs(viewRoot))) {
-
-                    EnumSet<VisitHint> hints = EnumSet.of(VisitHint.SKIP_UNRENDERED);
-                    VisitContext visitContext = new RenderExtendedVisitContext(facesContext, phaseIds, hints, limitRender);
-                    VisitCallback visitCallback = new RenderVisitCallback(facesContext);
-                    viewRoot.visitTree(visitContext, visitCallback);
-                }
-
-                renderState(facesContext);
-            }
+//            if (renderIds.li)
 
             addJavaScriptServicePageScripts(facesContext);
-            // TODO - render extensions for renderAll?
             renderExtensions(facesContext, viewRoot);
 
-            writer.endDocument();
-
-            if (writer instanceof DeferredEndingPartialResponseWriter) {
-                ((DeferredEndingPartialResponseWriter) writer).finallyEndDocument();
-            }
-        } catch (IOException ex) {
-            this.cleanupAfterView();
-            // TODO - review?
-            ex.printStackTrace();
-        } catch (RuntimeException ex) {
-            // TODO - review?
-            this.cleanupAfterView();
-            // Throw the exception
-            throw ex;
+            super.endDocument();
         }
+
     }
 
     private void setupExecuteCallbackData(ExecuteComponentCallback callback) {
@@ -374,7 +277,7 @@ public class ExtendedPartialViewContextImpl extends ExtendedPartialViewContext {
         }
     }
 
-    private void visitActivatorAtRender(Collection<String> ids) {
+    private void visitActivatorAtRender() {
         if (!isRenderAll()) {
             RenderComponentCallback callback = new RenderComponentCallback(getFacesContext(), behaviorEvent);
 
@@ -386,48 +289,16 @@ public class ExtendedPartialViewContextImpl extends ExtendedPartialViewContext {
 
             // take collection value stored during execute
             if (componentRenderIds != null) {
-                ids.addAll(componentRenderIds);
+                renderIds.addAll(componentRenderIds);
             }
 
-            if (!Boolean.TRUE.equals(renderAll) && !ids.contains(ALL)) {
-                addImplicitRenderIds(ids, limitRender);
+            if (!Boolean.TRUE.equals(renderAll) && !renderIds.contains(ALL)) {
+                addImplicitRenderIds(renderIds, limitRender);
 
                 appendOnbeforedomupdate(onbeforedomupdate);
                 appendOncomplete(oncomplete);
                 setResponseData(responseData);
             }
-        }
-    }
-
-    private void renderAll(FacesContext context, UIViewRoot viewRoot) throws IOException {
-        // If this is a "render all via ajax" request,
-        // make sure to wrap the entire page in a <render> elemnt
-        // with the special id of VIEW_ROOT_ID. This is how the client
-        // JavaScript knows how to replace the entire document with
-        // this response.
-        PartialViewContext pvc = context.getPartialViewContext();
-        PartialResponseWriter writer = pvc.getPartialResponseWriter();
-        writer.startUpdate(PartialResponseWriter.RENDER_ALL_MARKER);
-
-        if (viewRoot.getChildCount() > 0) {
-            for (UIComponent child : viewRoot.getChildren()) {
-                child.encodeAll(context);
-            }
-        }
-
-        writer.endUpdate();
-    }
-
-    private void renderState(FacesContext context) throws IOException {
-        if (!context.getViewRoot().isTransient()) {
-            // Get the view state and write it to the response..
-            PartialViewContext pvc = context.getPartialViewContext();
-            PartialResponseWriter writer = pvc.getPartialResponseWriter();
-            String viewStateId = Util.getViewStateId(context);
-            writer.startUpdate(viewStateId);
-            String state = context.getApplication().getStateManager().getViewState(context);
-            writer.write(state);
-            writer.endUpdate();
         }
     }
 
@@ -564,15 +435,6 @@ public class ExtendedPartialViewContextImpl extends ExtendedPartialViewContext {
 
         boolean visitResult = facesContext.getViewRoot().visitTree(visitContext, visitCallback);
         return visitResult;
-    }
-
-    private void cleanupAfterView() {
-        FacesContext facesContext = getFacesContext();
-
-        ResponseWriter orig = (ResponseWriter) facesContext.getAttributes().get(ORIGINAL_WRITER);
-        assert null != orig;
-        // move aside the PartialResponseWriter
-        facesContext.setResponseWriter(orig);
     }
 
     protected ContextMode detectContextMode() {
